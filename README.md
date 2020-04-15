@@ -11,7 +11,7 @@
 环境配置：
 
 - Win10 + VS2019 + Eigen + opencv3.2
-- 配置 IncludeDir、LibDir、Lib、DLL 
+- 配置 IncludeDir、LibDir、Lib、DLL，opencv_world320d.dll 大小为60m+，无法上传
 - 预处理：_CRT_SECURE_NO_WARNINGS
 
 ### A0: 环境配置
