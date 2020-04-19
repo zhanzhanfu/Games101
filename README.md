@@ -64,20 +64,7 @@
 
 ### A3: Fragment Shader
 
-- TBN 矩阵中，增加一步使 t，n正交，但对 t 的表达式不懂。
-
-  ```c++
-  Eigen::Vector3f n = normal;
-  float x = n.x();
-  float y = n.y();
-  float z = n.z();
-  float sqxz = sqrt(x * x + z * z);
-  Eigen::Vector3f t = Eigen::Vector3f(x * y / sqxz, sqxz, z * y / sqxz);
-  t = (t - n.dot(t) * n).normalized(); 
-  Eigen::Vector3f b = n.cross(t).normalized();
-  Eigen::Matrix3f TBN;
-  TBN << t, b, n;
-  ```
+- TBN 矩阵中，增加一步使 t，n正交。
 
   
 
@@ -91,8 +78,6 @@
 
 ![](README_PIC/3-displacement.png)
 
-
-
 ### A4： Bezier Curve
 
 ![](README_PIC/4-bc1.png)
@@ -101,9 +86,7 @@
 
 ![](README_PIC/4-bc3.png)
 
-
-
-### A5: Ray Trace
+### A5: Ray Tracing
 
 ![](README_PIC/5-binary.png)
 
@@ -111,9 +94,9 @@
 
 ### A6: BVH and SVH
 
-- BVH 可以 精确到 maxPrimsInNode = 1，即每个节点中保存一个 obj，但 SVH 不行，因为建树时，当 obj 个数为 2-3个时，float 精度已经不支持继续划分，会导致无限递归。
-- BVH 测试，在 4000+ 顶点的 bunny 兔子模型下，当 maxPrimsInNode  在 5-10 之间时达到最快，其实也都差不多，最快为 16s。如果把 BVH 链表改为数组结构，可能会更快。
-- SVH 测试，在 4000+ 顶点的 bunny 兔子模型下，当 maxPrimsInNode  在 5-10 之间时达到最快， num_buckets 取值为 8,16,25，随着 num_buckets 增大，建树速度会明显下降，从 2s 到 4s，但遍历速度都差不多，最快为 14s。
+- BVH 可以精确到每个节点中保存一个 obj，但 SVH 不行，因为 SVH 建树时，当 obj 个数为 2-3个时，float 精度已经不支持继续划分，会导致无限递归，因此 SVH 建树可以设节点中最大 obj 数目为5。
+- BVH 测试，渲染 bunny 时，当 prims per node  在 5-10 之间时达到最快，渲染速度最快为 16s。根据资料，如果把 最终的 BVH 链表改为数组结构，可能会更快。
+- SVH 测试，渲染 bunny 时，当 prims per node  在 5-10 之间时达到最快， 渲染速度最快为 14s，建树速度会随着 num_buckets 增大，明显下降，从 2s 到 4s。
 - SVH 参考资料：http://15462.courses.cs.cmu.edu/fall2015/lecture/acceleration
 
 ![](README_PIC/6-bvh.png)
@@ -122,6 +105,37 @@
 
 ![](README_PIC/6-binary.png)
 
+### A7: Path Tracing
 
+- 大幅度修改原来的代码结构，因为很多函数太冗余，如 intersect 函数，明明一个函数就可以解决，偏偏用了 2-3个，且函数命名很混乱。
 
-### A7: 未完成
+- 当 t 较大时，注意对 float 有效位的处理，渲染过程中，t 的取值一般都能达到 200 这个级别，而 float 的有效位数为 7 位，因此只能精确到小数点后 4 位，当 EPSILON = 1e-5 时，不能处理点被自身遮挡的情况，因此设 EPSILON = 1e-3
+
+- 包围盒的精度设置，若物体是一个 axis-align 的三角形，若设置包围盒时不特殊处理坐标，则需要求交时改变判断条件为
+
+  ```c++
+  if (t_max > EPSILON && t_min < t_max + EPSILON)
+  	return true;
+  ```
+
+- 通过直接采样光源的光线，可以在使用较少 spp 的情况下，获得较好的结果，Path Tracing 的核心就是蒙特卡洛积分。
+
+- 分辨率对渲染效果影响并没有想象中那么小，重构代码时，我使用 200* 200 像素的图片来测试，但后来发现低分辨率图，只能用于判断渲染的基础逻辑是否正确，不能用于判断渲染的效果，否则，Debug 时会找错原因，比如：
+
+  - 200*200，spp =1 ，直接光照，渲染下图，长立方体正面的像素点的差异清晰可见，一开始我以为是由于bound intersect 逻辑或者 t 的精度判断错误，使得着色点部分被遮挡，但其实是由于分辨率太低、采样点少造成的，因为 light 采样位置是随机的，所以每个像素点之间产生差异是正常的。
+
+  ![](README_PIC/7-200-1.png)
+
+  - 200*200，spp =1 ，全局光照，渲染下图，可以看出图中有很多白色的噪点，一开始我以为是代码逻辑错误，但其实也是由于分辨率太低，采样点太少造成的。代码本身是正确的，上面这两个傻屌问题花了我整整半天。
+
+  ![](README_PIC/7-200-2.png)
+
+  - 以 1024*1024， spp=16，直接光照，运行 16 分钟。
+
+  ![](README_PIC/7-1024-16-1.png)
+
+  - 以 1024*1024， spp=16，全局光照，运行 60 分钟。
+
+  ![](README_PIC/7-1024-16-2.png)
+
+- TODO ：添加微平面

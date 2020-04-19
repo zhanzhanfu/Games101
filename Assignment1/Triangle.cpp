@@ -21,6 +21,12 @@ Triangle::Triangle()
 	tex_coords[2] << 0.0, 0.0;
 }
 
+
+bool Triangle::hasEmit() const
+{
+	throw std::logic_error("The method or operation is not implemented.");
+}
+
 void Triangle::setVertex(int ind, const Vector3f &ver) { v[ind] = ver; }
 
 void Triangle::setNormal(int ind, const Vector3f &n) { normal[ind] = n; }
